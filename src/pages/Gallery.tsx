@@ -4,12 +4,18 @@ import { useApi } from '../hooks/useApi';
 import { galleryAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { galleryAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
 
 const GalleryPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Toutes');
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
 
   const { data: galleryResponse, loading, error, refetch } = useApi(() => galleryAPI.getAll({ limit: 50 }));
+  
+  const galleryData = galleryResponse?.data || [];
+  const categories = ['Toutes', ...Array.from(new Set(galleryData.map((photo: any) => photo.category)))];
   
   const galleryData = galleryResponse?.data || [];
   const categories = ['Toutes', ...Array.from(new Set(galleryData.map((photo: any) => photo.category)))];
@@ -82,7 +88,22 @@ const GalleryPage: React.FC = () => {
             />
           )}
 
+          {loading && (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner size="lg" />
+            </div>
+          )}
+
+          {error && (
+            <ErrorMessage 
+              message={error} 
+              onRetry={refetch}
+              className="mb-8"
+            />
+          )}
+
           {/* Photo Grid */}
+          {filteredPhotos.length > 0 && (
           {filteredPhotos.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredPhotos.map((photo: any, index: number) => (
@@ -108,6 +129,7 @@ const GalleryPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          )}
           )}
 
           {/* Modal */}

@@ -4,9 +4,25 @@ import { useApi } from '../hooks/useApi';
 import { scheduleAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import { scheduleAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
 
 const SchedulePage: React.FC = () => {
   const { data: schedules, loading, error, refetch } = useApi(() => scheduleAPI.getAll());
+
+  const groupedSchedule = schedules?.reduce((acc: any, item: any) => {
+    const dayMap: { [key: string]: string } = {
+      'monday': 'Lundi',
+      'tuesday': 'Mardi', 
+      'wednesday': 'Mercredi',
+      'thursday': 'Jeudi',
+      'friday': 'Vendredi',
+      'saturday': 'Samedi',
+      'sunday': 'Dimanche'
+    };
+    
+    const dayName = dayMap[item.dayOfWeek] || item.dayOfWeek;
 
   const groupedSchedule = schedules?.reduce((acc: any, item: any) => {
     const dayMap: { [key: string]: string } = {
@@ -24,6 +40,10 @@ const SchedulePage: React.FC = () => {
       acc[dayName] = [];
     }
     acc[dayName].push({
+      ...item,
+      timeSlot: `${item.startTime} - ${item.endTime}`,
+      instructor: item.instructor?.name || 'À définir'
+    });
       ...item,
       timeSlot: `${item.startTime} - ${item.endTime}`,
       instructor: item.instructor?.name || 'À définir'
@@ -86,6 +106,21 @@ const SchedulePage: React.FC = () => {
             )}
 
             {schedules && (
+            {loading && (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            )}
+
+            {error && (
+              <ErrorMessage 
+                message={error} 
+                onRetry={refetch}
+                className="mb-8"
+              />
+            )}
+
+            {schedules && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {Object.entries(groupedSchedule).map(([day, classes]: [string, any[]]) => (
                   <div key={day} className="bg-gray-50 rounded-lg p-6">
@@ -107,13 +142,13 @@ const SchedulePage: React.FC = () => {
                           <div className="flex items-center space-x-1 mb-2">
                             <User className="h-4 w-4 text-gray-500" />
                             <span className="text-gray-600 text-sm">{classItem.instructor}</span>
-                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 ))}
               </div>
+            )}
             )}
           </div>
 

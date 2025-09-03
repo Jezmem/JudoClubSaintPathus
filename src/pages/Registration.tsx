@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Download, FileText, UserPlus, CheckCircle, AlertTriangle, MapPin, Phone, Mail, Clock, Car, Accessibility, Send } from 'lucide-react';
-import { Registration, ContactMessage } from '../types';
+import { Registration, ContactMessage, FAQ } from '../types';
+import { useApiMutation, useApi } from '../hooks/useApi';
+import { contactAPI, registrationAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
 
 const RegistrationPage: React.FC = () => {
   const [formData, setFormData] = useState<Registration>({
@@ -27,6 +31,11 @@ const RegistrationPage: React.FC = () => {
   const [isRegistrationSubmitted, setIsRegistrationSubmitted] = useState(false);
   const [isContactSubmitted, setIsContactSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<'registration' | 'contact'>('registration');
+  const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+
+  // API mutations
+  const { mutate: submitRegistration, loading: registrationLoading, error: registrationError } = useApiMutation(registrationAPI.create);
+  const { mutate: submitContact, loading: contactLoading, error: contactError } = useApiMutation(contactAPI.create);
 
   const handleRegistrationChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -43,27 +52,32 @@ const RegistrationPage: React.FC = () => {
     setContactData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleRegistrationSubmit = (e: React.FormEvent) => {
+  const handleRegistrationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsRegistrationSubmitted(true);
-    console.log('Registration data:', formData);
+    
+    const result = await submitRegistration(formData);
+    if (result) {
+      setIsRegistrationSubmitted(true);
+    }
   };
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsContactSubmitted(true);
-    console.log('Contact form data:', contactData);
     
-    setTimeout(() => {
-      setIsContactSubmitted(false);
-      setContactData({
-        name: '',
-        email: '',
-        phone: '',
-        subject: '',
-        message: ''
-      });
-    }, 3000);
+    const result = await submitContact(contactData);
+    if (result) {
+      setIsContactSubmitted(true);
+      setTimeout(() => {
+        setIsContactSubmitted(false);
+        setContactData({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: ''
+        });
+      }, 3000);
+    }
   };
 
   const isMinor = () => {
@@ -114,6 +128,37 @@ const RegistrationPage: React.FC = () => {
       description: 'Gymnase entièrement accessible aux personnes à mobilité réduite'
     }
   ];
+
+  const faqData: FAQ[] = [
+    {
+      id: 1,
+      question: "À partir de quel âge peut-on commencer le judo ?",
+      answer: "Nous accueillons les enfants à partir de 4 ans dans notre cours de Baby Judo. C'est l'âge idéal pour développer la motricité et découvrir les valeurs du judo dans un environnement ludique.",
+      category: "Général"
+    },
+    {
+      id: 2,
+      question: "Faut-il un certificat médical pour s'inscrire ?",
+      answer: "Oui, un certificat médical de non contre-indication à la pratique du judo est obligatoire pour tous les licenciés. Pour les compétiteurs, un certificat spécifique est requis.",
+      category: "Inscription"
+    },
+    {
+      id: 3,
+      question: "Quel équipement faut-il pour commencer ?",
+      answer: "Pour débuter, un kimono blanc (judogi) et une ceinture blanche suffisent. Nous pouvons vous conseiller sur les marques et les magasins partenaires pour bénéficier de tarifs préférentiels.",
+      category: "Équipement"
+    },
+    {
+      id: 4,
+      question: "Peut-on faire un cours d'essai ?",
+      answer: "Absolument ! Nous proposons un cours d'essai gratuit pour tous les nouveaux adhérents. Il suffit de nous contacter pour convenir d'un rendez-vous.",
+      category: "Inscription"
+    }
+  ];
+
+  const toggleFAQ = (id: number) => {
+    setOpenFAQ(openFAQ === id ? null : id);
+  };
 
   if (isRegistrationSubmitted) {
     return (
@@ -249,6 +294,10 @@ const RegistrationPage: React.FC = () => {
                     <UserPlus className="h-6 w-6 text-red-600" />
                     <h3 className="text-2xl font-bold text-gray-900">Formulaire de pré-inscription</h3>
                   </div>
+
+                  {registrationError && (
+                    <ErrorMessage message={registrationError} className="mb-6" />
+                  )}
 
                   <form onSubmit={handleRegistrationSubmit} className="space-y-6">
                     {/* Personal Information */}
@@ -420,9 +469,17 @@ const RegistrationPage: React.FC = () => {
 
                     <button
                       type="submit"
+                      disabled={registrationLoading}
                       className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg font-medium transition-colors duration-200"
                     >
-                      Envoyer ma pré-inscription
+                      {registrationLoading ? (
+                        <div className="flex items-center justify-center space-x-2">
+                          <LoadingSpinner size="sm" />
+                          <span>Envoi en cours...</span>
+                        </div>
+                      ) : (
+                        'Envoyer ma pré-inscription'
+                      )}
                     </button>
 
                     <p className="text-xs text-gray-500 text-center">
@@ -487,6 +544,10 @@ const RegistrationPage: React.FC = () => {
                   <Send className="h-6 w-6 text-red-600" />
                   <h3 className="text-2xl font-bold text-gray-900">Envoyez-nous un message</h3>
                 </div>
+
+                {contactError && (
+                  <ErrorMessage message={contactError} className="mb-6" />
+                )}
 
                 {isContactSubmitted ? (
                   <div className="text-center py-8">
@@ -583,10 +644,20 @@ const RegistrationPage: React.FC = () => {
 
                     <button
                       type="submit"
+                      disabled={contactLoading}
                       className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
                     >
-                      <Send className="h-5 w-5" />
-                      <span>Envoyer le message</span>
+                      {contactLoading ? (
+                        <>
+                          <LoadingSpinner size="sm" />
+                          <span>Envoi en cours...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-5 w-5" />
+                          <span>Envoyer le message</span>
+                        </>
+                      )}
                     </button>
 
                     <p className="text-xs text-gray-500 text-center">
@@ -597,6 +668,58 @@ const RegistrationPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+
+        {/* FAQ Section */}
+        <div className="bg-white py-20">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">Questions fréquentes</h2>
+              <p className="text-xl text-gray-600">
+                Trouvez rapidement les réponses aux questions les plus courantes 
+                concernant les inscriptions et la pratique du judo.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {faqData.map((faq) => (
+                <div
+                  key={faq.id}
+                  className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+                >
+                  <button
+                    onClick={() => toggleFAQ(faq.id)}
+                    className="w-full px-6 py-4 text-left flex items-center justify-between focus:outline-none"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <HelpCircle className="h-5 w-5 text-red-600 mt-1 flex-shrink-0" />
+                      <h3 className="font-semibold text-gray-900 text-lg">
+                        {faq.question}
+                      </h3>
+                    </div>
+                    {openFAQ === faq.id ? (
+                      <ChevronUp className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-500" />
+                    )}
+                  </button>
+                  
+                  {openFAQ === faq.id && (
+                    <div className="px-6 pb-4">
+                      <div className="pl-8 border-l-2 border-red-100">
+                        <p className="text-gray-700 leading-relaxed">
+                          {faq.answer}
+                        </p>
+                        <span className="inline-block mt-3 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                          {faq.category}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
     </div>

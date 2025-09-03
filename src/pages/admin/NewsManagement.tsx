@@ -15,10 +15,18 @@ import {
   X
 } from 'lucide-react';
 import { News } from '../../types';
-import { newsData } from '../../data/mockData';
+import { useApi, useApiMutation } from '../../hooks/useApi';
+import { newsAPI } from '../../services/api';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorMessage from '../../components/ErrorMessage';
 
 const NewsManagement: React.FC = () => {
-  const [news, setNews] = useState<News[]>(newsData);
+  const { data: newsResponse, loading, error, refetch } = useApi(() => newsAPI.getAll({ limit: 100 }));
+  const { mutate: createNews, loading: createLoading } = useApiMutation(newsAPI.create);
+  const { mutate: updateNews, loading: updateLoading } = useApiMutation((params: { id: number; data: any }) => newsAPI.update(params.id, params.data));
+  const { mutate: deleteNews } = useApiMutation(newsAPI.delete);
+
+  const news = newsResponse?.data || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -83,25 +91,22 @@ const NewsManagement: React.FC = () => {
     e.preventDefault();
     
     if (editingNews) {
-      // Update existing news
-      setNews(prev => prev.map(item => 
-        item.id === editingNews.id ? { ...item, ...formData } as News : item
-      ));
+      updateNews({ id: editingNews.id, data: formData }).then(() => {
+        refetch();
+        closeModal();
+      });
     } else {
-      // Create new news
-      const newNews: News = {
-        id: Math.max(...news.map(n => n.id)) + 1,
-        ...formData as News
-      };
-      setNews(prev => [newNews, ...prev]);
+      createNews(formData).then(() => {
+        refetch();
+        closeModal();
+      });
     }
-    
-    closeModal();
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette actualité ?')) {
-      setNews(prev => prev.filter(item => item.id !== id));
+      await deleteNews(id);
+      refetch();
     }
   };
 
@@ -132,166 +137,184 @@ const NewsManagement: React.FC = () => {
         </button>
       </div>
 
+      {loading && (
+        <div className="flex justify-center py-12">
+          <LoadingSpinner size="lg" />
+        </div>
+      )}
+
+      {error && (
+        <ErrorMessage 
+          message={error} 
+          onRetry={refetch}
+          className="mb-8"
+        />
+      )}
+
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-          
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.filter(cat => cat !== 'all').map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="text-sm text-gray-600 flex items-center">
-            {filteredNews.length} actualité(s) trouvée(s)
+      {news.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <option value="all">Toutes les catégories</option>
+                {categories.filter(cat => cat !== 'all').map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="text-sm text-gray-600 flex items-center">
+              {filteredNews.length} actualité(s) trouvée(s)
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* News List */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actualité
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Catégorie
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedNews.map((newsItem) => (
-                <tr key={newsItem.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-start space-x-3">
-                      <img
-                        src={newsItem.image}
-                        alt={newsItem.title}
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                      <div>
-                        <h3 className="font-medium text-gray-900">{newsItem.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{newsItem.excerpt.substring(0, 80)}...</p>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          <span className="text-xs text-gray-500">{newsItem.author}</span>
+      {news.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actualité
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Catégorie
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {paginatedNews.map((newsItem) => (
+                  <tr key={newsItem.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-start space-x-3">
+                        <img
+                          src={newsItem.imageUrl}
+                          alt={newsItem.title}
+                          className="w-16 h-16 object-cover rounded-lg"
+                        />
+                        <div>
+                          <h3 className="font-medium text-gray-900">{newsItem.title}</h3>
+                          <p className="text-sm text-gray-600 mt-1">{newsItem.excerpt.substring(0, 80)}...</p>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <User className="h-4 w-4 text-gray-400" />
+                            <span className="text-xs text-gray-500">{newsItem.author}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-900">{formatDate(newsItem.date)}</span>
-                    </div>
-                    {isUpcoming(newsItem.date) && (
-                      <span className="inline-block mt-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                        À venir
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
-                      {newsItem.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="space-y-1">
-                      {newsItem.important && (
-                        <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                          Important
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm text-gray-900">{formatDate(newsItem.eventDate || newsItem.createdAt)}</span>
+                      </div>
+                      {isUpcoming(newsItem.eventDate || newsItem.createdAt) && (
+                        <span className="inline-block mt-1 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                          À venir
                         </span>
                       )}
-                      <div className="flex items-center space-x-1">
-                        <Tag className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500">
-                          {newsItem.tags.length} tag(s)
-                        </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
+                        {newsItem.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        {newsItem.important && (
+                          <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+                            Important
+                          </span>
+                        )}
+                        <div className="flex items-center space-x-1">
+                          <Tag className="h-3 w-3 text-gray-400" />
+                          <span className="text-xs text-gray-500">
+                            {newsItem.tags?.length || 0} tag(s)
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => openModal(newsItem)}
-                        className="text-blue-600 hover:text-blue-700 p-1"
-                        title="Modifier"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(newsItem.id)}
-                        className="text-red-600 hover:text-red-700 p-1"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
-            <div className="text-sm text-gray-700">
-              Affichage de {startIndex + 1} à {Math.min(startIndex + itemsPerPage, filteredNews.length)} sur {filteredNews.length} résultats
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm">
-                {currentPage}
-              </span>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => openModal(newsItem)}
+                          className="text-blue-600 hover:text-blue-700 p-1"
+                          title="Modifier"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(newsItem.id)}
+                          className="text-red-600 hover:text-red-700 p-1"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
+              <div className="text-sm text-gray-700">
+                Affichage de {startIndex + 1} à {Math.min(startIndex + itemsPerPage, filteredNews.length)} sur {filteredNews.length} résultats
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm">
+                  {currentPage}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
@@ -355,13 +378,13 @@ const NewsManagement: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Date *
+                    Date de publication *
                   </label>
                   <input
                     type="date"
-                    name="date"
+                    name="createdAt"
                     required
-                    value={formData.date || ''}
+                    value={formData.createdAt?.split('T')[0] || ''}
                     onChange={handleFormChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
@@ -388,12 +411,25 @@ const NewsManagement: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date de l'événement (optionnel)
+                </label>
+                <input
+                  type="date"
+                  name="eventDate"
+                  value={formData.eventDate?.split('T')[0] || ''}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   URL de l'image
                 </label>
                 <input
                   type="url"
-                  name="image"
-                  value={formData.image || ''}
+                  name="imageUrl"
+                  value={formData.imageUrl || ''}
                   onChange={handleFormChange}
                   placeholder="https://images.pexels.com/..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -437,10 +473,20 @@ const NewsManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={createLoading || updateLoading}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
                 >
-                  <Save className="h-4 w-4" />
-                  <span>{editingNews ? 'Modifier' : 'Créer'}</span>
+                  {(createLoading || updateLoading) ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span>Sauvegarde...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>{editingNews ? 'Modifier' : 'Créer'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

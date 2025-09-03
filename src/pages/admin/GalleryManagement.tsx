@@ -13,10 +13,18 @@ import {
   Eye
 } from 'lucide-react';
 import { Photo } from '../../types';
-import { galleryData } from '../../data/mockData';
+import { useApi, useApiMutation } from '../../hooks/useApi';
+import { galleryAPI } from '../../services/api';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorMessage from '../../components/ErrorMessage';
 
 const GalleryManagement: React.FC = () => {
-  const [photos, setPhotos] = useState<Photo[]>(galleryData);
+  const { data: galleryResponse, loading, error, refetch } = useApi(() => galleryAPI.getAll({ limit: 100 }));
+  const { mutate: createPhoto, loading: createLoading } = useApiMutation(galleryAPI.create);
+  const { mutate: updatePhoto, loading: updateLoading } = useApiMutation((params: { id: number; data: any }) => galleryAPI.update(params.id, params.data));
+  const { mutate: deletePhoto } = useApiMutation(galleryAPI.delete);
+
+  const photos = galleryResponse?.data || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,23 +78,22 @@ const GalleryManagement: React.FC = () => {
     e.preventDefault();
     
     if (editingPhoto) {
-      setPhotos(prev => prev.map(photo => 
-        photo.id === editingPhoto.id ? { ...photo, ...formData } as Photo : photo
-      ));
+      updatePhoto({ id: editingPhoto.id, data: formData }).then(() => {
+        refetch();
+        closeModal();
+      });
     } else {
-      const newPhoto: Photo = {
-        id: Math.max(...photos.map(p => p.id)) + 1,
-        ...formData as Photo
-      };
-      setPhotos(prev => [newPhoto, ...prev]);
+      createPhoto(formData).then(() => {
+        refetch();
+        closeModal();
+      });
     }
-    
-    closeModal();
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette photo ?')) {
-      setPhotos(prev => prev.filter(photo => photo.id !== id));
+      await deletePhoto(id);
+      refetch();
     }
   };
 
@@ -106,9 +113,12 @@ const GalleryManagement: React.FC = () => {
   };
 
   const toggleActive = (id: number) => {
-    setPhotos(prev => prev.map(photo => 
-      photo.id === id ? { ...photo, active: !photo.active } : photo
-    ));
+    const photo = photos.find((p: any) => p.id === id);
+    if (photo) {
+      updatePhoto({ id, data: { ...photo, active: !photo.active } }).then(() => {
+        refetch();
+      });
+    }
   };
 
   return (
@@ -128,128 +138,146 @@ const GalleryManagement: React.FC = () => {
         </button>
       </div>
 
+      {loading && (
+        <div className="flex justify-center py-12">
+          <LoadingSpinner size="lg" />
+        </div>
+      )}
+
+      {error && (
+        <ErrorMessage 
+          message={error} 
+          onRetry={refetch}
+          className="mb-8"
+        />
+      )}
+
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-          
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.filter(cat => cat !== 'all').map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="text-sm text-gray-600 flex items-center">
-            {filteredPhotos.length} photo(s) trouvée(s)
+      {photos.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                <option value="all">Toutes les catégories</option>
+                {categories.filter(cat => cat !== 'all').map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="text-sm text-gray-600 flex items-center">
+              {filteredPhotos.length} photo(s) trouvée(s)
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Photos Grid */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {paginatedPhotos.map((photo) => (
-            <div key={photo.id} className="group relative">
-              <div className="relative overflow-hidden rounded-lg">
-                <img
-                  src={photo.url}
-                  alt={photo.alt}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => openModal(photo)}
-                      className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full transition-colors duration-200"
-                      title="Modifier"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(photo.id)}
-                      className="bg-white/90 hover:bg-white text-red-600 p-2 rounded-full transition-colors duration-200"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+      {photos.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {paginatedPhotos.map((photo) => (
+              <div key={photo.id} className="group relative">
+                <div className="relative overflow-hidden rounded-lg">
+                  <img
+                    src={photo.url}
+                    alt={photo.alt}
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => openModal(photo)}
+                        className="bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full transition-colors duration-200"
+                        title="Modifier"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(photo.id)}
+                        className="bg-white/90 hover:bg-white text-red-600 p-2 rounded-full transition-colors duration-200"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
+                  
+                  {!photo.active && (
+                    <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                      Masquée
+                    </div>
+                  )}
                 </div>
                 
-                {!photo.active && (
-                  <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    Masquée
+                <div className="mt-3">
+                  <h3 className="font-medium text-gray-900 truncate">{photo.title}</h3>
+                  <p className="text-sm text-gray-600 truncate">{photo.description}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">
+                      {photo.category}
+                    </span>
+                    <button
+                      onClick={() => toggleActive(photo.id)}
+                      className={`text-xs px-2 py-1 rounded-full transition-colors duration-200 ${
+                        photo.active 
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200' 
+                          : 'bg-red-100 text-red-800 hover:bg-red-200'
+                      }`}
+                    >
+                      {photo.active ? 'Visible' : 'Masquée'}
+                    </button>
                   </div>
-                )}
-              </div>
-              
-              <div className="mt-3">
-                <h3 className="font-medium text-gray-900 truncate">{photo.title}</h3>
-                <p className="text-sm text-gray-600 truncate">{photo.description}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">
-                    {photo.category}
-                  </span>
-                  <button
-                    onClick={() => toggleActive(photo.id)}
-                    className={`text-xs px-2 py-1 rounded-full transition-colors duration-200 ${
-                      photo.active 
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                        : 'bg-red-100 text-red-800 hover:bg-red-200'
-                    }`}
-                  >
-                    {photo.active ? 'Visible' : 'Masquée'}
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Affichage de {startIndex + 1} à {Math.min(startIndex + itemsPerPage, filteredPhotos.length)} sur {filteredPhotos.length} résultats
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm">
-                {currentPage}
-              </span>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+            ))}
           </div>
-        )}
-      </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Affichage de {startIndex + 1} à {Math.min(startIndex + itemsPerPage, filteredPhotos.length)} sur {filteredPhotos.length} résultats
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm">
+                  {currentPage}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
@@ -381,10 +409,20 @@ const GalleryManagement: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={createLoading || updateLoading}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
                 >
-                  <Save className="h-4 w-4" />
-                  <span>{editingPhoto ? 'Modifier' : 'Ajouter'}</span>
+                  {(createLoading || updateLoading) ? (
+                    <>
+                      <LoadingSpinner size="sm" />
+                      <span>Sauvegarde...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>{editingPhoto ? 'Modifier' : 'Ajouter'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
