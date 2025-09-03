@@ -12,67 +12,30 @@ import {
   Eye,
   Clock
 } from 'lucide-react';
-import { AdminStats, ActivityItem } from '../../types/admin';
+import { useApi } from '../../hooks/useApi';
+import { newsAPI, galleryAPI, contactAPI, registrationAPI } from '../../services/api';
+import LoadingSpinner from '../../components/LoadingSpinner';
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch data for stats
+  const { data: newsResponse, loading: newsLoading } = useApi(() => newsAPI.getAll({ limit: 1 }));
+  const { data: galleryResponse, loading: galleryLoading } = useApi(() => galleryAPI.getAll({ limit: 1 }));
+  const { data: messagesResponse, loading: messagesLoading } = useApi(() => contactAPI.getAll({ limit: 1 }));
+  const { data: registrationsResponse, loading: registrationsLoading } = useApi(() => registrationAPI.getAll({ limit: 1 }));
 
-  useEffect(() => {
-    // Simulate API call to fetch stats
-    const fetchStats = async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockStats: AdminStats = {
-        totalNews: 12,
-        totalPhotos: 45,
-        totalMessages: 8,
-        totalRegistrations: 23,
-        pendingMessages: 3,
-        pendingRegistrations: 5,
-        recentActivity: [
-          {
-            id: 1,
-            type: 'registration',
-            action: 'created',
-            title: 'Nouvelle inscription - Marie Dupont',
-            date: '2024-01-15T10:30:00Z',
-            user: 'Système'
-          },
-          {
-            id: 2,
-            type: 'news',
-            action: 'updated',
-            title: 'Stage Maître Tanaka',
-            date: '2024-01-15T09:15:00Z',
-            user: 'Admin'
-          },
-          {
-            id: 3,
-            type: 'message',
-            action: 'created',
-            title: 'Question sur les horaires',
-            date: '2024-01-14T16:45:00Z',
-            user: 'Système'
-          },
-          {
-            id: 4,
-            type: 'photo',
-            action: 'created',
-            title: 'Photos compétition départementale',
-            date: '2024-01-14T14:20:00Z',
-            user: 'Admin'
-          }
-        ]
-      };
-      
-      setStats(mockStats);
-      setIsLoading(false);
-    };
-
-    fetchStats();
-  }, []);
+  const isLoading = newsLoading || galleryLoading || messagesLoading || registrationsLoading;
+  
+  // Calculate stats from API responses
+  const stats = {
+    totalNews: newsResponse?.pagination?.total || 0,
+    totalPhotos: galleryResponse?.pagination?.total || 0,
+    totalMessages: messagesResponse?.pagination?.total || 0,
+    totalRegistrations: registrationsResponse?.pagination?.total || 0,
+    pendingMessages: messagesResponse?.data?.filter((m: any) => m.status === 'unread').length || 0,
+    pendingRegistrations: registrationsResponse?.data?.filter((r: any) => r.status === 'pending').length || 0,
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
@@ -106,7 +69,7 @@ const Dashboard: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -125,7 +88,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Actualités</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.totalNews}</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.totalNews}</p>
             </div>
             <div className="bg-blue-100 p-3 rounded-full">
               <FileText className="h-6 w-6 text-blue-600" />
@@ -141,7 +104,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Photos</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.totalPhotos}</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.totalPhotos}</p>
             </div>
             <div className="bg-green-100 p-3 rounded-full">
               <Image className="h-6 w-6 text-green-600" />
@@ -157,7 +120,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Messages</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.totalMessages}</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.totalMessages}</p>
             </div>
             <div className="bg-purple-100 p-3 rounded-full">
               <MessageSquare className="h-6 w-6 text-purple-600" />
@@ -165,7 +128,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="mt-4 flex items-center text-sm text-orange-600">
             <Clock className="h-4 w-4 mr-1" />
-            <span>{stats?.pendingMessages} en attente</span>
+            <span>{stats.pendingMessages} en attente</span>
           </div>
         </div>
 
@@ -173,7 +136,7 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Inscriptions</p>
-              <p className="text-3xl font-bold text-gray-900">{stats?.totalRegistrations}</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.totalRegistrations}</p>
             </div>
             <div className="bg-orange-100 p-3 rounded-full">
               <UserPlus className="h-6 w-6 text-orange-600" />
@@ -181,7 +144,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="mt-4 flex items-center text-sm text-orange-600">
             <Clock className="h-4 w-4 mr-1" />
-            <span>{stats?.pendingRegistrations} en attente</span>
+            <span>{stats.pendingRegistrations} en attente</span>
           </div>
         </div>
       </div>
@@ -205,50 +168,18 @@ const Dashboard: React.FC = () => {
           <button className="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg p-4 text-left transition-colors duration-200">
             <MessageSquare className="h-6 w-6 text-purple-600 mb-2" />
             <h3 className="font-medium text-gray-900">Messages</h3>
-            <p className="text-sm text-gray-600">{stats?.pendingMessages} non lus</p>
+            <p className="text-sm text-gray-600">{stats.pendingMessages} non lus</p>
           </button>
           
           <button className="bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg p-4 text-left transition-colors duration-200">
             <UserPlus className="h-6 w-6 text-orange-600 mb-2" />
             <h3 className="font-medium text-gray-900">Inscriptions</h3>
-            <p className="text-sm text-gray-600">{stats?.pendingRegistrations} en attente</p>
+            <p className="text-sm text-gray-600">{stats.pendingRegistrations} en attente</p>
           </button>
         </div>
       </div>
 
       {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Activité récente</h2>
-          <div className="space-y-4">
-            {stats?.recentActivity.map((activity) => {
-              const Icon = getActivityIcon(activity.type);
-              const colorClass = getActivityColor(activity.type);
-              
-              return (
-                <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors duration-200">
-                  <div className={`p-2 rounded-full ${colorClass}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {activity.title}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {activity.action === 'created' ? 'Créé' : 
-                       activity.action === 'updated' ? 'Modifié' : 'Supprimé'} 
-                      par {activity.user}
-                    </p>
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {formatDate(activity.date)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Site Analytics */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Statistiques du site</h2>
@@ -286,7 +217,6 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };
