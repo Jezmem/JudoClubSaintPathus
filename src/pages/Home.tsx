@@ -1,11 +1,24 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Award, Users, Clock, ArrowRight, Calendar, Trophy, MapPin, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
-import { newsData, instructorsData, faqData } from '../data/mockData';
 import { useState } from 'react';
+import { useApi } from '../hooks/useApi';
+import { newsAPI, instructorAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
 
 const Home: React.FC = () => {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
+
+  // Fetch latest news
+  const { data: newsResponse, loading: newsLoading, error: newsError, refetch: refetchNews } = useApi(
+    () => newsAPI.getAll({ limit: 3 })
+  );
+
+  // Fetch instructors
+  const { data: instructors, loading: instructorsLoading, error: instructorsError, refetch: refetchInstructors } = useApi(
+    () => instructorAPI.getAll()
+  );
 
   const values = [
     { icon: Star, title: 'Respect', description: 'Envers soi-même et les autres' },
@@ -27,10 +40,61 @@ const Home: React.FC = () => {
     { icon: Users, title: 'Équipe pédagogique', description: 'Professeurs diplômés d\'État passionnés' },
   ];
 
-  const latestNews = newsData.slice(0, 3);
+  const faqData = [
+    {
+      id: 1,
+      question: "À partir de quel âge peut-on commencer le judo ?",
+      answer: "Nous accueillons les enfants à partir de 4 ans dans notre cours de Baby Judo. C'est l'âge idéal pour développer la motricité et découvrir les valeurs du judo dans un environnement ludique.",
+      category: "Général"
+    },
+    {
+      id: 2,
+      question: "Faut-il un certificat médical pour s'inscrire ?",
+      answer: "Oui, un certificat médical de non contre-indication à la pratique du judo est obligatoire pour tous les licenciés. Pour les compétiteurs, un certificat spécifique est requis.",
+      category: "Inscription"
+    },
+    {
+      id: 3,
+      question: "Quel équipement faut-il pour commencer ?",
+      answer: "Pour débuter, un kimono blanc (judogi) et une ceinture blanche suffisent. Nous pouvons vous conseiller sur les marques et les magasins partenaires pour bénéficier de tarifs préférentiels.",
+      category: "Équipement"
+    },
+    {
+      id: 4,
+      question: "Peut-on faire un cours d'essai ?",
+      answer: "Absolument ! Nous proposons un cours d'essai gratuit pour tous les nouveaux adhérents. Il suffit de nous contacter pour convenir d'un rendez-vous.",
+      category: "Inscription"
+    },
+    {
+      id: 5,
+      question: "Quels sont les horaires d'ouverture du secrétariat ?",
+      answer: "Le secrétariat est ouvert les lundis, mercredis et vendredi de 17h à 20h, ainsi que le samedi matin de 9h à 12h pendant la période scolaire.",
+      category: "Pratique"
+    },
+    {
+      id: 6,
+      question: "Le club organise-t-il des compétitions ?",
+      answer: "Oui, nous participons régulièrement aux compétitions départementales et régionales. La participation n'est pas obligatoire mais nous encourageons nos judokas à découvrir cette dimension du judo.",
+      category: "Compétition"
+    }
+  ];
+
+  const latestNews = newsResponse?.data || [];
 
   const toggleFAQ = (id: number) => {
     setOpenFAQ(openFAQ === id ? null : id);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const isUpcoming = (dateString: string) => {
+    return new Date(dateString) > new Date();
   };
 
   return (
@@ -178,31 +242,45 @@ const Home: React.FC = () => {
           {/* Instructors */}
           <div>
             <h3 className="text-3xl font-bold text-gray-900 text-center mb-12">Notre équipe pédagogique</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {instructorsData.map((instructor) => (
-                <div key={instructor.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                  <img 
-                    src={instructor.photo} 
-                    alt={`${instructor.firstName} ${instructor.lastName}`}
-                    className="w-full h-64 object-cover"
-                  />
-                  <div className="p-6">
-                    <h4 className="text-xl font-bold text-gray-900 mb-2">
-                      {instructor.firstName} {instructor.lastName}
-                    </h4>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {instructor.grade}
-                      </span>
-                      <span className="text-gray-600 text-sm">{instructor.experience} ans d'expérience</span>
+            
+            {instructorsLoading && (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            )}
+
+            {instructorsError && (
+              <ErrorMessage 
+                message={instructorsError} 
+                onRetry={refetchInstructors}
+                className="mb-8"
+              />
+            )}
+
+            {instructors && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {instructors.map((instructor: any) => (
+                  <div key={instructor.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                    <img 
+                      src={instructor.photoUrl} 
+                      alt={instructor.name}
+                      className="w-full h-64 object-cover"
+                    />
+                    <div className="p-6">
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">
+                        {instructor.name}
+                      </h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                          {instructor.beltRank}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm">{instructor.bio}</p>
                     </div>
-                    <p className="text-gray-700 font-medium mb-2">{instructor.role}</p>
-                    <p className="text-gray-600 text-sm mb-2">Spécialité: {instructor.specialty}</p>
-                    <p className="text-gray-600 text-sm">{instructor.bio}</p>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -292,43 +370,66 @@ const Home: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {latestNews.map((news) => (
-              <article key={news.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                {news.important && (
-                  <div className="bg-red-500 text-white text-center py-2 text-sm font-medium">
-                    ACTUALITÉ IMPORTANTE
-                  </div>
-                )}
-                
-                <img
-                  src={news.image}
-                  alt={news.title}
-                  className="w-full h-48 object-cover"
-                />
-                
-                <div className="p-6">
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{new Date(news.date).toLocaleDateString('fr-FR')}</span>
+          {newsLoading && (
+            <div className="flex justify-center py-12">
+              <LoadingSpinner size="lg" />
+            </div>
+          )}
+
+          {newsError && (
+            <ErrorMessage 
+              message={newsError} 
+              onRetry={refetchNews}
+              className="mb-8"
+            />
+          )}
+
+          {latestNews.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {latestNews.map((news: any) => (
+                <article key={news.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                  {news.important && (
+                    <div className="bg-red-500 text-white text-center py-2 text-sm font-medium">
+                      ACTUALITÉ IMPORTANTE
                     </div>
+                  )}
+
+                  {isUpcoming(news.eventDate || news.createdAt) && (
+                    <div className="bg-blue-500 text-white text-center py-2 text-sm font-medium flex items-center justify-center space-x-1">
+                      <Clock className="h-4 w-4" />
+                      <span>À VENIR</span>
+                    </div>
+                  )}
+                  
+                  <img
+                    src={news.imageUrl}
+                    alt={news.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  
+                  <div className="p-6">
+                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+                      <div className="flex items-center space-x-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>{formatDate(news.eventDate || news.createdAt)}</span>
+                      </div>
+                    </div>
+                    
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{news.title}</h3>
+                    <p className="text-gray-600 mb-4">{news.excerpt}</p>
+                    
+                    <Link 
+                      to="/news"
+                      className="text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
+                    >
+                      <span>Lire la suite</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
                   </div>
-                  
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{news.title}</h3>
-                  <p className="text-gray-600 mb-4">{news.excerpt}</p>
-                  
-                  <Link 
-                    to="/news"
-                    className="text-red-600 hover:text-red-700 font-medium flex items-center space-x-1"
-                  >
-                    <span>Lire la suite</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -344,7 +445,7 @@ const Home: React.FC = () => {
           </div>
 
           <div className="space-y-4">
-            {faqData.slice(0, 6).map((faq) => (
+            {faqData.map((faq) => (
               <div
                 key={faq.id}
                 className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
