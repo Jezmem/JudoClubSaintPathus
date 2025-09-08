@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, UserPlus, CheckCircle, AlertTriangle, MapPin, Phone, Mail, Clock, Car, Accessibility, Send } from 'lucide-react';
+import { Download, FileText, UserPlus, CheckCircle, AlertTriangle, MapPin, Phone, Mail, Clock, Car, Accessibility, Send, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Registration, ContactMessage, FAQ } from '../types';
 import { useApiMutation, useApi } from '../hooks/useApi';
 import { contactAPI, registrationAPI } from '../services/api';
