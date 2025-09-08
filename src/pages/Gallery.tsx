@@ -9,14 +9,15 @@ const GalleryPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('Toutes');
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
 
-  const { data: galleryResponse, loading, error, refetch } = useApi(() => galleryAPI.getAll({ limit: 50 }));
+  const { data: galleryData, loading, error, refetch } = useApi(
+    () => galleryAPI.getAll({ limit: 50 }),
+    []
+  );
   
-  const galleryData = galleryResponse?.data || [];
+  const photos = galleryData || [];
   const categories = ['Toutes', ...Array.from(new Set(galleryData.map((photo: any) => photo.category)))];
   
   const filteredPhotos = selectedCategory === 'Toutes' 
-    ? galleryData 
-    : galleryData.filter((photo: any) => photo.category === selectedCategory);
 
   const openModal = (index: number) => {
     setSelectedImage(index);

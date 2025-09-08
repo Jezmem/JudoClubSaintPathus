@@ -10,7 +10,10 @@ const NewsPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  const { data: newsResponse, loading, error, refetch } = useApi(() => newsAPI.getAll({ limit: 50 }));
+  const { data: newsData, loading, error, refetch } = useApi(
+    () => newsAPI.getAll({ limit: 50 }),
+    []
+  );
 
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,10 +33,10 @@ const NewsPage: React.FC = () => {
     return new Date(dateString) > new Date();
   };
 
-  const newsData = newsResponse?.data || [];
+  const news = newsData || [];
 
-  const filteredNews = newsData.filter((news: any) => {
-    const eventDate = news.eventDate || news.createdAt;
+  const filteredNews = news.filter((newsItem: any) => {
+    const eventDate = newsItem.eventDate || newsItem.createdAt;
     if (selectedFilter === 'upcoming') return isUpcoming(eventDate);
     if (selectedFilter === 'past') return !isUpcoming(eventDate);
     return true;
@@ -103,16 +106,16 @@ const NewsPage: React.FC = () => {
           {/* News Grid */}
           {filteredNews.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
-              {filteredNews.map((news: any) => {
-                const eventDate = news.eventDate || news.createdAt;
+              {filteredNews.map((newsItem: any) => {
+                const eventDate = newsItem.eventDate || newsItem.createdAt;
                 return (
                   <article
-                    key={news.id}
+                    key={newsItem.id}
                     className={`bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 ${
-                      news.important ? 'ring-2 ring-red-500' : ''
+                      newsItem.important ? 'ring-2 ring-red-500' : ''
                     }`}
                   >
-                    {news.important && (
+                    {newsItem.important && (
                       <div className="bg-red-500 text-white text-center py-2 text-sm font-medium">
                         ACTUALITÉ IMPORTANTE
                       </div>
@@ -126,8 +129,8 @@ const NewsPage: React.FC = () => {
                     )}
                     
                     <img
-                      src={news.imageUrl}
-                      alt={news.title}
+                      src={newsItem.imageUrl}
+                      alt={newsItem.title}
                       className="w-full h-48 object-cover"
                     />
                     
@@ -137,25 +140,25 @@ const NewsPage: React.FC = () => {
                           <Calendar className="h-4 w-4" />
                           <span>{formatDate(eventDate)}</span>
                         </div>
-                        {news.author && (
+                        {newsItem.author && (
                           <div className="flex items-center space-x-1">
                             <User className="h-4 w-4" />
-                            <span>{news.author}</span>
+                            <span>{newsItem.author}</span>
                           </div>
                         )}
                       </div>
                       
-                      <h3 className="text-xl font-bold text-gray-900 mb-3">{news.title}</h3>
-                      <p className="text-gray-600 mb-4">{news.excerpt}</p>
+                      <h3 className="text-xl font-bold text-gray-900 mb-3">{newsItem.title}</h3>
+                      <p className="text-gray-600 mb-4">{newsItem.excerpt}</p>
                       
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
-                            {news.category}
+                            {newsItem.category}
                           </span>
                         </div>
                         <button
-                          onClick={() => setSelectedNews(news.id)}
+                          onClick={() => setSelectedNews(newsItem.id)}
                           className="text-red-600 hover:text-red-700 font-medium flex items-center space-x-1 transition-colors duration-200"
                         >
                           <span>Lire plus</span>
@@ -163,11 +166,11 @@ const NewsPage: React.FC = () => {
                         </button>
                       </div>
                       
-                      {news.tags && news.tags.length > 0 && (
+                      {newsItem.tags && newsItem.tags.length > 0 && (
                         <div className="flex items-center space-x-2 mt-4 pt-4 border-t border-gray-200">
                           <Tag className="h-4 w-4 text-gray-400" />
                           <div className="flex flex-wrap gap-1">
-                            {news.tags.map((tag: string, index: number) => (
+                            {newsItem.tags.map((tag: string, index: number) => (
                               <span key={index} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                                 {tag}
                               </span>
@@ -214,17 +217,17 @@ const NewsPage: React.FC = () => {
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-lg max-w-2xl max-h-[90vh] overflow-y-auto">
                 {(() => {
-                  const news = newsData.find((n: any) => n.id === selectedNews);
-                  if (!news) return null;
+                  const newsItem = news.find((n: any) => n.id === selectedNews);
+                  if (!newsItem) return null;
                   
-                  const eventDate = news.eventDate || news.createdAt;
+                  const eventDate = newsItem.eventDate || newsItem.createdAt;
                   
                   return (
                     <>
                       <div className="relative">
                         <img
-                          src={news.imageUrl}
-                          alt={news.title}
+                          src={newsItem.imageUrl}
+                          alt={newsItem.title}
                           className="w-full h-64 object-cover"
                         />
                         <button
@@ -246,19 +249,19 @@ const NewsPage: React.FC = () => {
                             <Calendar className="h-4 w-4" />
                             <span>{formatDate(eventDate)}</span>
                           </div>
-                          {news.author && (
+                          {newsItem.author && (
                             <div className="flex items-center space-x-1">
                               <User className="h-4 w-4" />
-                              <span>{news.author}</span>
+                              <span>{newsItem.author}</span>
                             </div>
                           )}
                           <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                            {news.category}
+                            {newsItem.category}
                           </span>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-4">{news.title}</h3>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">{newsItem.title}</h3>
                         <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                          {news.content}
+                          {newsItem.content}
                         </p>
                       </div>
                     </>

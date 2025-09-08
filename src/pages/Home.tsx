@@ -11,13 +11,15 @@ const Home: React.FC = () => {
   const [openFAQ, setOpenFAQ] = useState<number | null>(null);
 
   // Fetch latest news
-  const { data: newsResponse, loading: newsLoading, error: newsError, refetch: refetchNews } = useApi(
-    () => newsAPI.getAll({ limit: 3 })
+  const { data: latestNews, loading: newsLoading, error: newsError, refetch: refetchNews } = useApi(
+    () => newsAPI.getAll({ limit: 3 }),
+    []
   );
 
   // Fetch instructors
   const { data: instructors, loading: instructorsLoading, error: instructorsError, refetch: refetchInstructors } = useApi(
-    () => instructorAPI.getAll()
+    () => instructorAPI.getAll(),
+    []
   );
 
   const values = [
@@ -79,7 +81,6 @@ const Home: React.FC = () => {
     }
   ];
 
-  const latestNews = newsResponse?.data || [];
 
   const toggleFAQ = (id: number) => {
     setOpenFAQ(openFAQ === id ? null : id);

@@ -8,15 +8,16 @@ import ErrorMessage from '../components/ErrorMessage';
 const SchedulePage: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState('all');
 
-  const { data: schedulesResponse, loading: schedulesLoading, error: schedulesError, refetch: refetchSchedules } = useApi(
-    () => scheduleAPI.getAll()
+  const { data: schedules, loading: schedulesLoading, error: schedulesError, refetch: refetchSchedules } = useApi(
+    () => scheduleAPI.getAll(),
+    []
   );
 
   const { data: instructors, loading: instructorsLoading, error: instructorsError, refetch: refetchInstructors } = useApi(
-    () => instructorAPI.getAll()
+    () => instructorAPI.getAll(),
+    []
   );
 
-  const schedules = schedulesResponse || [];
   const levels = ['all', ...Array.from(new Set(schedules.map((s: any) => s.level)))];
 
   const filteredSchedules = selectedLevel === 'all' 

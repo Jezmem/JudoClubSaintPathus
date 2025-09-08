@@ -26,7 +26,7 @@ export function useApi<T>(
       setState({ 
         data: null, 
         loading: false, 
-        error: error.response?.data?.message || error.message || 'Une erreur est survenue' 
+        error: error.response?.data?.errors?.[0] || error.response?.data?.message || error.message || 'Une erreur est survenue' 
       });
     }
   };
