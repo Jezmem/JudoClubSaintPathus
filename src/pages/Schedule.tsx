@@ -20,9 +20,11 @@ const SchedulePage: React.FC = () => {
 
   const levels = ['all', ...Array.from(new Set(schedules.map((s: any) => s.level)))];
 
+  const levels = ['all', ...Array.from(new Set((schedules || []).map((s: any) => s.level)))];
+
   const filteredSchedules = selectedLevel === 'all' 
-    ? schedules 
-    : schedules.filter((s: any) => s.level === selectedLevel);
+    ? (schedules || [])
+    : (schedules || []).filter((s: any) => s.level === selectedLevel);
 
   const groupedSchedules = filteredSchedules.reduce((acc: any, schedule: any) => {
     const day = schedule.dayOfWeek;
@@ -134,7 +136,7 @@ const SchedulePage: React.FC = () => {
           )}
 
           {/* Schedule Grid */}
-          {schedules.length > 0 && (
+          {schedules && schedules.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 mb-20">
               {days.map(day => (
                 <div key={day} className="bg-white rounded-lg shadow-lg p-6">
