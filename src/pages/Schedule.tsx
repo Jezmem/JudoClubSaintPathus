@@ -18,8 +18,6 @@ const SchedulePage: React.FC = () => {
     []
   );
 
-  const levels = ['all', ...Array.from(new Set(schedules.map((s: any) => s.level)))];
-
   const levels = ['all', ...Array.from(new Set((schedules || []).map((s: any) => s.level)))];
 
   const filteredSchedules = selectedLevel === 'all' 
