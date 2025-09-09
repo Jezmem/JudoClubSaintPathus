@@ -385,7 +385,7 @@ const Home: React.FC = () => {
             />
           )}
 
-          {latestNews.length > 0 && (
+          {latestNews && latestNews.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {latestNews.map((news: any) => (
                 <article key={news.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">

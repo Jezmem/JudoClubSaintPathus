@@ -15,9 +15,11 @@ const GalleryPage: React.FC = () => {
   );
   
   const photos = galleryData || [];
-  const categories = ['Toutes', ...Array.from(new Set(galleryData.map((photo: any) => photo.category)))];
+  const categories = ['Toutes', ...Array.from(new Set(photos.map((photo: any) => photo.category)))];
   
   const filteredPhotos = selectedCategory === 'Toutes' 
+    ? photos 
+    : photos.filter((photo: any) => photo.category === selectedCategory);
 
   const openModal = (index: number) => {
     setSelectedImage(index);
